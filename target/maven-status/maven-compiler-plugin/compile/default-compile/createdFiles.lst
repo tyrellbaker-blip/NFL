@@ -4,6 +4,8 @@ Coach.class
 Player.class
 Conference.class
 Person.class
+RosterImporter$1.class
+RosterImporter.class
 Division.class
 Owner.class
 NFLApp.class

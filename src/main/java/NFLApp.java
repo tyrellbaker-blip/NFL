@@ -4,16 +4,22 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
+import java.io.File;
+import java.util.List;
 
 public class NFLApp extends Application {
     private League nfl;
     private ComboBox<Team> teamSelector;
     private ListView<String> rosterListView;
     private Label rosterCountLabel;
+    private Stage primaryStage;
 
     @Override
     public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
         initializeNFL();
 
         BorderPane root = new BorderPane();
@@ -105,6 +111,10 @@ public class NFLApp extends Application {
             }
         });
 
+        Button importButton = new Button("Import from Excel");
+        importButton.setPrefWidth(150);
+        importButton.setOnAction(e -> importRosterFromExcel());
+
         panel.getChildren().addAll(
             title,
             new Label("Name:"), nameField,
@@ -112,7 +122,10 @@ public class NFLApp extends Application {
             new Label("Position:"), positionField,
             new Label("Jersey #:"), jerseyField,
             new Label("Years in League:"), yearsField,
-            addButton
+            addButton,
+            new Separator(),
+            new Label("Or:"),
+            importButton
         );
 
         return panel;
@@ -150,6 +163,52 @@ public class NFLApp extends Application {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private void importRosterFromExcel() {
+        Team selectedTeam = teamSelector.getValue();
+        if (selectedTeam == null) {
+            showAlert("Please select a team first.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Select Excel File");
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls")
+        );
+
+        File file = fileChooser.showOpenDialog(primaryStage);
+        if (file == null) {
+            return;
+        }
+
+        try {
+            List<Player> players = RosterImporter.importFromExcel(file);
+
+            int added = 0;
+            int skipped = 0;
+
+            for (Player player : players) {
+                try {
+                    selectedTeam.addPlayer(player);
+                    added++;
+                } catch (IllegalStateException e) {
+                    skipped++;
+                }
+            }
+
+            Alert result = new Alert(Alert.AlertType.INFORMATION);
+            result.setTitle("Import Complete");
+            result.setHeaderText(null);
+            result.setContentText(String.format("Import complete!\n\nAdded: %d players\nSkipped: %d players (roster full or invalid data)", added, skipped));
+            result.showAndWait();
+
+            updateRosterView();
+        } catch (Exception e) {
+            showAlert("Error importing file: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void initializeNFL() {
